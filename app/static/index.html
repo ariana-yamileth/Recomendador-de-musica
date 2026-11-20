@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Verde FM · Recomendador de música · MongoDB Atlas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#040704; --card:#0b110b; --card2:#111a11; --tx:#e9f7e9; --mut:#7e957e; --line:#1d2c1d; --ac:#24ff7c; --ac2:#0ecb5a; --glow:rgba(36,255,124,.18); --err:#ff6b6b; color-scheme:dark; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:'Space Grotesk',system-ui,-apple-system,Segoe UI,sans-serif; color:var(--tx); min-height:100vh; font-size:16px;
+         background:var(--bg) radial-gradient(900px 400px at 85% -10%,var(--glow),transparent) no-repeat;
+         padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px); }
+  header { padding:24px 24px 8px; max-width:1100px; margin:0 auto; }
+  h1 { margin:0; font-size:28px; letter-spacing:-.5px; display:flex; align-items:center; gap:12px; }
+  h1 i { width:38px; height:38px; border-radius:12px; background:linear-gradient(135deg,var(--ac),var(--ac2)); display:grid; place-items:center; color:#031; font-style:normal; font-size:18px; box-shadow:0 0 24px var(--glow); }
+  h1 span { color:var(--ac); }
+  #estado { color:var(--mut); font-size:13px; margin-top:8px; font-family:'JetBrains Mono',monospace; }
+  #estado::before { content:""; display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--ac); box-shadow:0 0 10px var(--ac); margin-right:8px; animation:pulso 2s infinite; }
+  @keyframes pulso { 50% { opacity:.35; } }
+  @media (prefers-reduced-motion: reduce) { #estado::before { animation:none; } }
+  nav { display:flex; gap:8px; flex-wrap:wrap; padding:14px 24px; max-width:1100px; margin:0 auto; }
+  nav button { border:1px solid var(--line); background:transparent; color:var(--mut); padding:9px 16px; border-radius:999px; cursor:pointer; font:inherit; font-size:14px; transition:.15s; }
+  nav button:hover { color:var(--tx); border-color:var(--ac2); }
+  nav button.on { background:var(--ac); border-color:var(--ac); color:#021; font-weight:700; box-shadow:0 0 18px var(--glow); }
+  main { padding:4px 24px 40px; max-width:1100px; margin:0 auto; }
+  section { display:none; background:var(--card); border:1px solid var(--line); border-radius:18px; padding:22px; }
+  section.on { display:block; }
+  h2 { margin:0 0 4px; font-size:22px; } p.d { margin:0 0 16px; color:var(--mut); font-size:15px; }
+  .fila { display:flex; gap:10px; flex-wrap:wrap; align-items:end; margin-bottom:16px; }
+  label { display:flex; flex-direction:column; font-size:13px; color:var(--mut); gap:4px; }
+  input, select { padding:9px 11px; border:1px solid var(--line); border-radius:10px; background:var(--card2); color:var(--tx); font:inherit; font-size:15px; min-width:90px; }
+  input:focus, select:focus, button:focus-visible, summary:focus-visible { outline:2px solid var(--ac); outline-offset:2px; }
+  button.p { background:linear-gradient(135deg,var(--ac),var(--ac2)); color:#021; border:0; padding:10px 18px; border-radius:10px; cursor:pointer; font:inherit; font-size:15px; font-weight:700; transition:.15s; }
+  button.p:hover { box-shadow:0 0 18px var(--glow); transform:translateY(-1px); }
+  button.g { background:transparent; color:var(--ac); border:1px solid var(--ac2); padding:9px 15px; border-radius:10px; cursor:pointer; font:inherit; font-size:14px; transition:.15s; }
+  button.g:hover { background:var(--ac); color:#021; }
+  button.s { background:transparent; color:var(--ac); border:1px solid var(--ac2); padding:5px 11px; border-radius:8px; cursor:pointer; font:inherit; font-size:12px; transition:.15s; }
+  button.s:hover { background:var(--ac); color:#021; }
+  button.s.r { color:var(--err); border-color:var(--err); }
+  button.s.r:hover { background:var(--err); color:#200; }
+  .scroll { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:15px; }
+  th, td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th { color:var(--ac); font-weight:500; font-size:12px; text-transform:uppercase; letter-spacing:.08em; font-family:'JetBrains Mono',monospace; }
+  tr:hover > td { background:var(--card2); }
+  .msg { margin:10px 0; font-size:15px; } .msg.err { color:var(--err); } .msg.ok { color:var(--ac); }
+  .vacio { color:var(--mut); font-size:14px; padding:8px 0; }
+  code { font-family:'JetBrains Mono',monospace; color:var(--ac); font-size:.9em; }
+  details { background:var(--card2); border:1px solid var(--line); border-left:3px solid var(--ac); border-radius:10px; padding:8px 14px; margin:0 0 16px; }
+  summary { cursor:pointer; font-weight:500; color:var(--ac); }
+  details p { margin:8px 0 4px; font-size:14px; color:var(--mut); }
+  pre { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:10px 12px; margin:8px 0 4px; font:12.5px/1.6 'JetBrains Mono',monospace; color:var(--ac); overflow-x:auto; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:16px 0 18px; }
+  .kpi { background:var(--card2); border:1px solid var(--line); border-radius:14px; padding:14px 16px; }
+  .kpi b { display:block; font-size:34px; line-height:1.1; color:var(--ac); text-shadow:0 0 18px var(--glow); }
+  .kpi span { color:var(--mut); font-size:13px; font-family:'JetBrains Mono',monospace; }
+  .flujo { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:8px 0 6px; }
+  .flujo div { border:1px solid var(--ac2); border-radius:10px; padding:8px 14px; background:var(--card2); }
+  .flujo i { color:var(--ac); font-style:normal; }
+  .usr { background:var(--card2); border:1px solid var(--line); border-radius:12px; padding:10px 14px; margin-bottom:12px; }
+  .tag { display:inline-block; border:1px solid var(--ac2); color:var(--ac); border-radius:999px; padding:0 10px; margin:4px 4px 0 0; font-size:13px; }
+  footer { max-width:1100px; margin:0 auto; padding:0 24px 28px; color:var(--mut); font-size:13px; font-family:'JetBrains Mono',monospace; }
+  @media (max-width:520px) { header, nav, main, footer { padding-left:14px; padding-right:14px; } h1 { font-size:23px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1><i>♪</i>Verde<span>FM</span> · Recomendador de música</h1>
+  <div id="estado">Conectando con MongoDB Atlas…</div>
+</header>
+<nav id="tabs"></nav>
+<main>
+  <section id="inicio"><h2>Resumen del proyecto</h2>
+    <p class="d">Recomendador de música sobre MongoDB Atlas: los datos viven en la nube y esta página los consulta a través de una API.</p>
+    <div class="flujo"><div>Navegador (esta página)</div><i>→</i><div>API FastAPI</div><i>→</i><div>PyMongo</div><i>→</i><div>MongoDB Atlas</div></div>
+    <div class="kpis" id="kpis"></div>
+    <p class="d">Cada pestaña muestra una consulta distinta y explica el pipeline de MongoDB que la resuelve.</p>
+  </section>
+
+  <section id="top"><h2>Top canciones</h2><p class="d">Las más reproducidas, con su calificación promedio.</p>
+    <div class="fila"><label>Cantidad<input id="top-n" type="number" value="10" min="1" max="50"></label><button class="p" onclick="cargar('top')">Consultar</button></div><div id="top-r"></div></section>
+
+  <section id="rec"><h2>Recomendaciones para un usuario</h2><p class="d">Canciones que escuchan usuarios con gustos parecidos y que este usuario aún no ha escuchado.</p>
+    <div class="fila"><label>ID de usuario (1 a 1000)<input id="rec-id" type="number" value="1" min="1"></label><button class="p" onclick="cargar('rec')">Recomendar</button><button class="g" onclick="azar()">🎲 Usuario aleatorio</button></div><div id="rec-r"></div></section>
+
+  <section id="tam"><h2>Quien escuchó esto también escuchó</h2><p class="d">Dada una canción, muestra qué otras escuchan quienes la escucharon.</p>
+    <div class="fila"><label>ID de canción (1 a 1000)<input id="tam-id" type="number" value="15" min="1"></label><button class="p" onclick="cargar('tam')">Buscar</button></div><div id="tam-r"></div></section>
+
+  <section id="art"><h2>Artistas relacionados</h2><p class="d">Quien escucha al artista indicado también escucha a estos artistas.</p>
+    <div class="fila"><label>ID de artista (1 a 100)<input id="art-id" type="number" value="10" min="1"></label><button class="p" onclick="cargar('art')">Buscar</button></div><div id="art-r"></div></section>
+
+  <section id="ciu"><h2>Género más escuchado por ciudad</h2><p class="d">Cruza reproducciones con usuarios para ver qué género domina en cada ciudad.</p>
+    <div class="fila"><button class="p" onclick="cargar('ciu')">Consultar</button></div><div id="ciu-r"></div></section>
+
+  <section id="crud"><h2>Administrar canciones</h2><p class="d">Crear, leer, actualizar y eliminar documentos directamente en Atlas.</p>
+    <div class="fila">
+      <label>Buscar título<input id="f-q"></label>
+      <label>Género<select id="f-g"><option value="">Todos</option></select></label>
+      <button class="p" onclick="listar()">Filtrar</button>
+    </div>
+    <div class="fila" id="form">
+      <label>Título<input id="c-titulo"></label>
+      <label>ID artista<input id="c-art" type="number" min="1" value="1"></label>
+      <label>Género<select id="c-gen"></select></label>
+      <label>Duración (seg)<input id="c-dur" type="number" value="200"></label>
+      <label>Año<input id="c-anio" type="number" value="2024"></label>
+      <button class="p" id="c-guardar" onclick="guardar()">Crear canción</button>
+      <button class="s" onclick="limpiar()">Limpiar</button>
+    </div>
+    <div id="crud-msg" class="msg"></div>
+    <details open><summary>Probar la validación de esquema</summary>
+      <p>MongoDB rechaza los documentos que no cumplen las reglas definidas con <code>$jsonSchema</code>. Este botón intenta guardar tres documentos inválidos.</p>
+      <button class="g" onclick="demoVal()">Intentar guardar datos inválidos</button><div id="val-r"></div></details>
+    <div id="crud-r"></div></section>
+</main>
+
+<script>
+const TABS = {inicio:"Inicio", top:"Top canciones", rec:"Recomendaciones", tam:"También escucharon", art:"Artistas", ciu:"Género por ciudad", crud:"Canciones (CRUD)"};
+const INFO = {
+  top:["Agrupa las reproducciones por canción, cuenta cuántas hay y promedia la calificación; luego trae el título desde la colección canciones.",
+       "$group  { _id: cancion_id, reproducciones: $sum, promedio: $avg }\n$sort   { reproducciones: -1 }\n$limit  n\n$lookup canciones  →  $unwind  →  $project"],
+  rec:["Filtrado colaborativo: busca usuarios que escucharon las mismas canciones, toma a los 50 más parecidos y suma las canciones que ellos escuchan y este usuario no.",
+       "$match  { cancion_id ∈ mis canciones, usuario ≠ yo }\n$group  por usuario → canciones en común\n$sort + $limit 50   (los más parecidos)\n$lookup reproducciones  →  $unwind\n$match  { cancion_id ∉ mis canciones }\n$group  por canción → puntaje   →   $sort + $limit"],
+  tam:["Toma a los oyentes de la canción elegida y cuenta qué otras canciones escucharon ellos.",
+       "distinct(usuario_id) de la canción\n$match  { usuario ∈ oyentes, canción ≠ elegida }\n$group  por canción → oyentes distintos\n$sort + $limit  →  $lookup canciones"],
+  art:["Igual que la anterior, pero agrupando por artista en lugar de por canción.",
+       "distinct(usuario_id) del artista\n$match  { usuario ∈ fans, artista ≠ elegido }\n$group  por artista → fans distintos\n$sort + $limit  →  $lookup artistas"],
+  ciu:["Une cada reproducción con su usuario para conocer su ciudad, cuenta por ciudad y género, y se queda con el género más frecuente de cada ciudad.",
+       "$lookup usuarios  →  $unwind\n$group  { ciudad, género } → total\n$sort   total desc\n$group  por ciudad → $first (género top)"]
+};
+const ETQ = {cancion_id:"ID canción", titulo:"Título", artista:"Artista", genero:"Género", puntaje:"Afinidad", reproducciones:"Reproducciones",
+  promedio:"Calificación prom.", artista_id:"ID artista", ciudad:"Ciudad", genero_top:"Género top", duracion_seg:"Duración (s)", anio:"Año", _id:"ID"};
+const OV = {tam:{total:"Oyentes en común"}, art:{total:"Fans en común"}, ciu:{total:"Reproducciones"}};
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let TOT = {usuarios:1000};
+
+async function api(url, opciones) {
+  const r = await fetch(url, opciones);
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.detalle || (Array.isArray(d.detail) ? "Datos inválidos: revisa los campos" : d.detail) || "Error " + r.status);
+  return d;
+}
+function tabla(filas, extra, ov) {
+  if (!filas.length) return '<div class="vacio">Sin resultados: este elemento aún no tiene historial de reproducciones.</div>';
+  const cols = Object.keys(filas[0]).filter(k => k !== "_id" || extra);
+  const et = c => (ov && ov[c]) || ETQ[c] || c;
+  return '<div class="scroll"><table><tr>' + cols.map(c => `<th>${esc(et(c))}</th>`).join("") + (extra ? "<th></th>" : "") + "</tr>" +
+    filas.map(f => "<tr>" + cols.map(c => `<td>${esc(f[c])}</td>`).join("") + (extra ? `<td>${extra(f)}</td>` : "") + "</tr>").join("") + "</table></div>";
+}
+const RUTAS = {
+  top: () => `/api/top-canciones?limite=${$("top-n").value}`,
+  rec: () => `/api/recomendaciones/${$("rec-id").value}`,
+  tam: () => `/api/tambien-escucharon/${$("tam-id").value}`,
+  art: () => `/api/artistas-relacionados/${$("art-id").value}`,
+  ciu: () => `/api/genero-por-ciudad`,
+};
+async function cargar(k) {
+  const out = $(k + "-r"); out.innerHTML = '<div class="vacio">Consultando…</div>';
+  try {
+    let h = "";
+    if (k === "rec") {
+      const u = await api("/api/usuarios/" + $("rec-id").value);
+      h = `<div class="usr"><b>${esc(u.nombre)}</b> · ${esc(u.ciudad)} · ${esc(u.edad)} años<br>Géneros favoritos: ` +
+          (u.generos_favoritos || []).map(g => `<span class="tag">${esc(g)}</span>`).join("") + "</div>";
+    }
+    const t0 = performance.now();
+    const d = await api(RUTAS[k]());
+    h += `<div class="vacio">${d.length} resultados en ${Math.round(performance.now() - t0)} ms</div>` + tabla(d, null, OV[k]);
+    out.innerHTML = h;
+  } catch (e) { out.innerHTML = `<div class="msg err">${esc(e.message)}</div>`; }
+}
+function azar() { $("rec-id").value = 1 + Math.floor(Math.random() * TOT.usuarios); cargar("rec"); }
+
+// ---------- CRUD ----------
+let editando = null;
+const cache = {};
+async function listar() {
+  const p = new URLSearchParams({limite: 15});
+  if ($("f-q").value) p.set("q", $("f-q").value);
+  if ($("f-g").value) p.set("genero", $("f-g").value);
+  try {
+    const d = await api("/api/canciones?" + p);
+    d.items.forEach(c => cache[c._id] = c);
+    $("crud-r").innerHTML = `<div class="vacio">${d.total} canciones (mostrando ${d.items.length})</div>` +
+      tabla(d.items, c => `<button class="s" onclick="editar(${c._id})">Editar</button> <button class="s r" onclick="borrar(${c._id})">Eliminar</button>`);
+  } catch (e) { mensaje(e.message, true); }
+}
+function mensaje(t, err) { $("crud-msg").className = "msg " + (err ? "err" : "ok"); $("crud-msg").textContent = t; }
+function limpiar() { editando = null; $("c-titulo").value = ""; $("c-guardar").textContent = "Crear canción"; }
+function editar(id) {
+  const c = cache[id];
+  editando = c._id; $("c-titulo").value = c.titulo; $("c-art").value = c.artista_id;
+  $("c-gen").value = c.genero; $("c-dur").value = c.duracion_seg; $("c-anio").value = c.anio;
+  $("c-guardar").textContent = "Guardar cambios #" + c._id; window.scrollTo({top: 0, behavior: "smooth"});
+}
+async function guardar() {
+  const cuerpo = {titulo: $("c-titulo").value, artista_id: +$("c-art").value, genero: $("c-gen").value,
+                  duracion_seg: +$("c-dur").value, anio: +$("c-anio").value};
+  try {
+    const r = await api(editando ? `/api/canciones/${editando}` : "/api/canciones",
+      {method: editando ? "PUT" : "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(cuerpo)});
+    mensaje((editando ? "Actualizada" : "Creada") + `: #${r._id} ${r.titulo}`); limpiar(); listar();
+  } catch (e) { mensaje(e.message, true); }
+}
+async function borrar(id) {
+  if (!confirm("¿Eliminar la canción " + id + " y sus reproducciones?")) return;
+  try { const r = await api("/api/canciones/" + id, {method: "DELETE"});
+        mensaje(`Eliminada #${id} (${r.reproducciones_eliminadas} reproducciones)`); listar(); }
+  catch (e) { mensaje(e.message, true); }
+}
+async function demoVal() {
+  $("val-r").innerHTML = '<div class="vacio">Probando…</div>';
+  try {
+    const r = await api("/api/demo-validacion", {method: "POST"});
+    $("val-r").innerHTML = r.pruebas.map(p => `<div class="msg ${p.rechazado ? "ok" : "err"}"><b>${esc(p.prueba)}</b>: ` +
+      (p.rechazado ? `rechazado por MongoDB (código ${esc(p.codigo)})` : "se guardó, la validación no está activa") + "</div>").join("");
+  } catch (e) { $("val-r").innerHTML = `<div class="msg err">${esc(e.message)}</div>`; }
+}
+
+// ---------- Inicio ----------
+function mostrar(k) {
+  document.querySelectorAll("section").forEach(s => s.classList.toggle("on", s.id === k));
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.k === k));
+}
+$("tabs").innerHTML = Object.entries(TABS).map(([k, v]) => `<button data-k="${k}" onclick="mostrar('${k}')">${v}</button>`).join("");
+Object.entries(INFO).forEach(([k, [txt, pl]]) => $(k).querySelector("p.d").insertAdjacentHTML("afterend",
+  `<details><summary>¿Cómo funciona?</summary><p>${esc(txt)}</p><pre>${esc(pl)}</pre></details>`));
+mostrar("inicio");
+(async () => {
+  try {
+    const s = await api("/api/salud");
+    TOT = s.documentos;
+    $("estado").textContent = "Conectado a Atlas · base «" + s.base + "»";
+    const nom = {usuarios:"usuarios", artistas:"artistas", canciones:"canciones", reproducciones:"reproducciones"};
+    $("kpis").innerHTML = Object.entries(s.documentos).map(([k, v]) => `<div class="kpi"><b>${v.toLocaleString()}</b><span>${nom[k]}</span></div>`).join("");
+    const g = await api("/api/generos");
+    $("f-g").innerHTML = '<option value="">Todos</option>' + g.map(x => `<option>${esc(x)}</option>`).join("");
+    $("c-gen").innerHTML = g.map(x => `<option>${esc(x)}</option>`).join("");
+    cargar("top"); listar();
+  } catch (e) { $("estado").innerHTML = `<span style="color:var(--err)">${esc(e.message)}</span>`; }
+})();
+</script>
+</body>
+</html>
